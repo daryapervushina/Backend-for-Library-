@@ -4,9 +4,9 @@ namespace Library.DTOs.Auth;
 
 public class LoginRequest
 {
-    [Required]
+    [Required(ErrorMessage = "is required")]
     public string Email { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "is required")]
     public string Password { get; set; } = string.Empty;
 }
