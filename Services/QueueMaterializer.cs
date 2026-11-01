@@ -31,7 +31,7 @@ public class QueueMaterializer : IQueueMaterializer
 
             if (expired is null)
             {
-                return;
+                return; 
             }
 
             expired.Status = ReservationStatus.Expired;

@@ -31,6 +31,7 @@ builder.Services.AddScoped<IReservationQueue, ReservationQueue>();
 builder.Services.AddScoped<IQueueMaterializer, QueueMaterializer>();
 builder.Services.AddScoped<ILoanPolicyChecker, LoanPolicyChecker>();
 builder.Services.AddScoped<IDbSeeder, DbSeeder>();
+builder.Services.AddScoped<ILoanService, LoanService>();
 
 builder.Services.AddHttpClient("OpenLibrary", (serviceProvider, client) =>
 {
