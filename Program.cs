@@ -26,6 +26,10 @@ builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddScoped<ValidationFilter>();
 builder.Services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBookLocker, BookLocker>();
+builder.Services.AddScoped<IReservationQueue, ReservationQueue>();
+builder.Services.AddScoped<IQueueMaterializer, QueueMaterializer>();
+builder.Services.AddScoped<ILoanPolicyChecker, LoanPolicyChecker>();
 builder.Services.AddScoped<IDbSeeder, DbSeeder>();
 
 builder.Services.AddHttpClient("OpenLibrary", (serviceProvider, client) =>
