@@ -2,7 +2,6 @@ using Library.DTOs.Auth;
 using Library.Filters;
 using Library.Services;
 using Library.Common;
-using System.Security.Claims;
 using Library.DTOs.Loans;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;

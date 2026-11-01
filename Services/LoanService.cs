@@ -18,7 +18,7 @@ namespace Library.Services
         private readonly IQueueMaterializer _materializer;
         private readonly IReservationQueue _reservation;
         public LoanService(AppDbContext db, IReservationQueue reservation,
-            ILoanPolicyChecker policyChecker, IClock clock,IBookLocker bookLocker, IQueueMaterializer materializer):
+            ILoanPolicyChecker policyChecker, IClock clock,IBookLocker bookLocker, IQueueMaterializer materializer)
         {
             _db = db;
             _policyChecker = policyChecker;
