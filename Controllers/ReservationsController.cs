@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Library.DTOs.Reservations;
+using Library.Services;
 using Library.Common;
 namespace Library.Controllers;
 
@@ -9,7 +10,7 @@ namespace Library.Controllers;
 [Route("api/reservations")]
 public class ReservationsController : ControllerBase
 {
-    private readonly _IReservationService _reservationService;
+    private readonly IReservationService _reservationService;
     public ReservationsController(IReservationService reservationService)
     {
         _reservationService = reservationService;

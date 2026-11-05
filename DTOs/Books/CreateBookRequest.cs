@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Library.DTOs.Books;
 
-public class CreateBookRequest
+public class CreateBookRequest : IValidatableObject
 {
     public string? Isbn { get; set; }
 
@@ -19,4 +19,12 @@ public class CreateBookRequest
     public List<int>? AuthorIds { get; set; }
 
     public List<int>? CategoryIds { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (string.IsNullOrWhiteSpace(Isbn) && string.IsNullOrWhiteSpace(Title))
+        {
+            yield return new ValidationResult("is required when isbn is not provided", new[] { nameof(Title) });
+        }
+    }
 }

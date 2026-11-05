@@ -3,7 +3,7 @@ using Library.Common.Exceptions;
 using Library.Data;
 using Library.DTOs.Reservations;
 using Library.Models;
-using Library.Serices;
+using Library.Services;
 using Library.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Net;

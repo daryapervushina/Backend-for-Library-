@@ -9,7 +9,6 @@ public class Reservation
     public int BookId { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    /// <summary>Заполняется только когда бронь переходит в READY (now + 48h).</summary>
     public DateTime? ExpiresAt { get; set; }
 
     public ReservationStatus Status { get; set; } = ReservationStatus.Waiting;
