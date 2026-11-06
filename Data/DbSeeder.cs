@@ -1,4 +1,3 @@
-using Library.Common;
 using Library.Models;
 using Library.Models.Enums;
 using Library.Options;
@@ -11,14 +10,12 @@ namespace Library.Data;
 public class DbSeeder : IDbSeeder
 {
     private readonly AppDbContext _db;
-    private readonly IClock _clock;
     private readonly SeedOptions _options;
     private readonly PasswordHasher<User> _passwordHasher = new();
 
-    public DbSeeder(AppDbContext db, IClock clock, IOptions<SeedOptions> options)
+    public DbSeeder(AppDbContext db, IOptions<SeedOptions> options)
     {
         _db = db;
-        _clock = clock;
         _options = options.Value;
     }
 
@@ -35,7 +32,7 @@ public class DbSeeder : IDbSeeder
             Name = _options.LibrarianName,
             Role = UserRole.Librarian,
             IsActive = true,
-            CreatedAt = _clock.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
         librarian.PasswordHash = _passwordHasher.HashPassword(librarian, _options.LibrarianPassword);
 

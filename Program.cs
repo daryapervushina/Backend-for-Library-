@@ -22,7 +22,6 @@ var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<Jw
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddScoped<ValidationFilter>();
 builder.Services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -31,8 +30,12 @@ builder.Services.AddScoped<IReservationQueue, ReservationQueue>();
 builder.Services.AddScoped<IQueueMaterializer, QueueMaterializer>();
 builder.Services.AddScoped<ILoanPolicyChecker, LoanPolicyChecker>();
 builder.Services.AddScoped<IDbSeeder, DbSeeder>();
+builder.Services.AddScoped<ILoanService, LoanService>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+builder.Services.AddScoped<IOpenLibraryClient, OpenLibraryClient>();
+builder.Services.AddScoped<IBookService, BookService>();
 
-builder.Services.AddHttpClient("OpenLibrary", (serviceProvider, client) =>
+builder.Services.AddHttpClient(OpenLibraryOptions.ClientName, (serviceProvider, client) =>
 {
     var openLibraryOptions = serviceProvider.GetRequiredService<IOptions<OpenLibraryOptions>>().Value;
     client.BaseAddress = new Uri(openLibraryOptions.BaseUrl);
@@ -74,6 +77,14 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    if (app.Configuration.GetValue<bool>("Database:ResetOnStartup"))
+    {
+        await db.Database.EnsureDeletedAsync();
+    }
+
+    await db.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IDbSeeder>().SeedAsync();
 }
 

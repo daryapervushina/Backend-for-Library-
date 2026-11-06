@@ -1,0 +1,18 @@
+$kind: http-request
+url: "{{baseUrl}}/api/books"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{librarianToken}}
+body:
+  type: json
+  content: '{"title":"Test Book 1","total_copies":1}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('Has id', () => pm.expect(b.id).to.not.be.undefined);
+      pm.collectionVariables.set('book1Id', b.id);
+    language: text/javascript
+order: 1000

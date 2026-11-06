@@ -14,14 +14,12 @@ public class AuthService : IAuthService
 {
     private readonly AppDbContext _db;
     private readonly IJwtTokenGenerator _tokenGenerator;
-    private readonly IClock _clock;
     private readonly PasswordHasher<User> _passwordHasher = new();
 
-    public AuthService(AppDbContext db, IJwtTokenGenerator tokenGenerator, IClock clock)
+    public AuthService(AppDbContext db, IJwtTokenGenerator tokenGenerator)
     {
         _db = db;
         _tokenGenerator = tokenGenerator;
-        _clock = clock;
     }
 
     public async Task<UserResponse> RegisterAsync(RegisterRequest request)
@@ -37,7 +35,7 @@ public class AuthService : IAuthService
             Name = request.Name,
             Role = UserRole.Reader,
             IsActive = true,
-            CreatedAt = _clock.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
         user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
 

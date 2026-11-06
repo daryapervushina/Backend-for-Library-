@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: '{"email":"{{librarianEmail}}","password":"{{librarianPassword}}"}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('Role is LIBRARIAN', () => pm.expect(b.user.role).to.eql('LIBRARIAN'));
+      pm.collectionVariables.set('librarianToken', b.token);
+    language: text/javascript
+order: 5000

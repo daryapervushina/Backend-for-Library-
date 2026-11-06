@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/api/loans/{{loan2Id}}/return"
+method: POST
+headers:
+  Authorization: Bearer {{reader2Token}}
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 200', () => pm.response.to.have.status(200));
+    language: text/javascript
+order: 5000

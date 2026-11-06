@@ -13,16 +13,14 @@ namespace Library.Services
     {
         private readonly AppDbContext _db;
         private readonly ILoanPolicyChecker _policyChecker;
-        private readonly IClock _clock;
         private readonly IBookLocker _bookLocker;
         private readonly IQueueMaterializer _materializer;
         private readonly IReservationQueue _reservation;
         public LoanService(AppDbContext db, IReservationQueue reservation,
-            ILoanPolicyChecker policyChecker, IClock clock,IBookLocker bookLocker, IQueueMaterializer materializer)
+            ILoanPolicyChecker policyChecker,IBookLocker bookLocker, IQueueMaterializer materializer)
         {
             _db = db;
             _policyChecker = policyChecker;
-            _clock = clock;
             _bookLocker = bookLocker;
             _materializer = materializer;
             _reservation = reservation;
@@ -30,7 +28,7 @@ namespace Library.Services
         }
         public async Task<LoanResponse> BorrowAsync(int userId, CreateLoanRequest request)
         {
-            var now = _clock.UtcNow;
+            var now = DateTime.UtcNow;
             var bookId = request.BookId!.Value;
 
             await using var tx = await _db.Database.BeginTransactionAsync();
@@ -73,7 +71,7 @@ namespace Library.Services
 
         public async Task<ReturnLoanResponse> ReturnAsync(int id, int userId, bool isLibrarian)
         {
-            var now = _clock.UtcNow;
+            var now = DateTime.UtcNow;
             var loanInfo = await _db.Loans.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id);
             if (loanInfo == null)
             {
@@ -106,7 +104,7 @@ namespace Library.Services
         }
         public async Task <List<UserLoanResponse>> GetUserLoansAsync(int userId, int requesterId, bool isLibrarian,LoanFilter? filter)
         {
-            var now = _clock.UtcNow;
+            var now = DateTime.UtcNow;
             if (!isLibrarian && userId != requesterId)
             {
                 throw new ForbiddenException("you don't have permission to access this resource");

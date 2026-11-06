@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/api/loans"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{reader2Token}}
+body:
+  type: json
+  content: '{"book_id":{{book2Id}}}'
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 409 (limit reached)', () => pm.response.to.have.status(409));
+    language: text/javascript
+order: 6000

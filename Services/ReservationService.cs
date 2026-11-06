@@ -13,16 +13,14 @@ namespace Library.Services
     public class ReservationService : IReservationService
     {
         private readonly AppDbContext _db;
-        private readonly IClock _clock;
         private readonly IBookLocker _bookLocker;
         private readonly IQueueMaterializer _materializer;
         private readonly IReservationQueue _reservation;
         private readonly ILoanPolicyChecker _policyChecker;
         public ReservationService(AppDbContext db, IReservationQueue reservation,
-             IClock clock, IBookLocker bookLocker, IQueueMaterializer materializer,ILoanPolicyChecker policyChecker) 
+             IBookLocker bookLocker, IQueueMaterializer materializer,ILoanPolicyChecker policyChecker) 
         {
             _db = db;
-            _clock = clock;
             _bookLocker = bookLocker;
             _materializer = materializer;
             _reservation = reservation;
@@ -31,7 +29,7 @@ namespace Library.Services
         }
         public async Task<ReservationResponse> CreateAsync(int userId, CreateReservationRequest request)
         {
-            var now=_clock.UtcNow;
+            var now=DateTime.UtcNow;
             var bookId = request.BookId!.Value;
 
 
@@ -69,7 +67,7 @@ namespace Library.Services
 
         public async Task CancelAsync(int reservationId, int userId, bool isLibrarian)
         {
-            var now=_clock.UtcNow;
+            var now=DateTime.UtcNow;
             var reservInfo= await _db.Reservations.AsNoTracking().FirstOrDefaultAsync(r => r.Id == reservationId);
             if (reservInfo == null)
                 throw new NotFoundException("reservation not found");

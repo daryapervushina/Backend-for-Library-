@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/api/books/{{book1Id}}"
+method: PUT
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{librarianToken}}
+body:
+  type: json
+  content: '{"title":"Test Book 1 (updated)","description":"desc","publication_year":2020,"total_copies":1,"author_ids":[],"category_ids":[]}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('Title updated', () => pm.expect(b.title).to.eql('Test Book 1 (updated)'));
+    language: text/javascript
+order: 5000

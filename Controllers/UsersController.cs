@@ -1,17 +1,17 @@
-using Library.Services;
-using Microsoft.AspNetCore.Mvc;
 using Library.Common;
 using Library.DTOs.Loans;
 using Library.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Library.Comtrollers;
+namespace Library.Controllers;
+
 [ApiController]
 [Route("api/users")]
-public class UsersController: ControllerBase
+public class UsersController : ControllerBase
 {
     private readonly ILoanService _loanService;
+
     public UsersController(ILoanService loanService)
     {
         _loanService = loanService;
@@ -19,7 +19,7 @@ public class UsersController: ControllerBase
 
     [HttpGet("{id:int}/loans")]
     [Authorize]
-    public async Task<ActionResult<List<UserLoanResponse>>> GetLoans (int id, [FromQuery] LoanFilter? filter)
+    public async Task<ActionResult<List<UserLoanResponse>>> GetLoans(int id, [FromQuery] LoanFilter? filter)
     {
         int requesterId = User.GetUserId();
         bool isLibrarian = User.IsLibrarian();

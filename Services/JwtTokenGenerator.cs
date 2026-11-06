@@ -12,12 +12,10 @@ namespace Library.Services;
 public class JwtTokenGenerator : IJwtTokenGenerator
 {
     private readonly JwtOptions _options;
-    private readonly IClock _clock;
 
-    public JwtTokenGenerator(IOptions<JwtOptions> options, IClock clock)
+    public JwtTokenGenerator(IOptions<JwtOptions> options)
     {
         _options = options.Value;
-        _clock = clock;
     }
 
     public string Generate(User user)
@@ -30,7 +28,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SecretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var now = _clock.UtcNow;
+        var now = DateTime.UtcNow;
 
         var token = new JwtSecurityToken(
             claims: claims,
