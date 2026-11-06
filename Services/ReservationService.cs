@@ -62,7 +62,7 @@ namespace Library.Services
             await tx.CommitAsync();
 
             return new ReservationResponse(reserv.Id, reserv.BookId, reserv.UserId,
-                reserv.CreatedAt, reserv.ExpiresAt, "WAITING");
+                reserv.CreatedAt, reserv.ExpiresAt, reserv.Status.ToApiString());
         }
 
         public async Task CancelAsync(int reservationId, int userId, bool isLibrarian)

@@ -66,7 +66,7 @@ namespace Library.Services
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
 
-            return new LoanResponse(loan.Id, loan.BookId, loan.UserId, loan.BorrowedAt, loan.DueAt, "ACTIVE");
+            return new LoanResponse(loan.Id, loan.BookId, loan.UserId, loan.BorrowedAt, loan.DueAt, loan.Status.ToApiString());
         }
 
         public async Task<ReturnLoanResponse> ReturnAsync(int id, int userId, bool isLibrarian)
@@ -100,7 +100,7 @@ namespace Library.Services
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
 
-            return new ReturnLoanResponse(loan.Id, loan.BookId, loan.UserId, "RETURNED", now);
+            return new ReturnLoanResponse(loan.Id, loan.BookId, loan.UserId, loan.Status.ToApiString(), now);
         }
         public async Task <List<UserLoanResponse>> GetUserLoansAsync(int userId, int requesterId, bool isLibrarian,LoanFilter? filter)
         {
@@ -127,7 +127,7 @@ namespace Library.Services
                     l.BorrowedAt,
                     l.DueAt,
                     l.ReturnedAt,
-                    l.Status == LoanStatus.Active ? "ACTIVE" : "RETURNED",
+                    l.Status.ToApiString(),
                     l.Status == LoanStatus.Active && l.DueAt < now))
                 .ToListAsync();
         }
