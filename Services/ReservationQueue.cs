@@ -15,7 +15,7 @@ public class ReservationQueue : IReservationQueue
         _db = db;
     }
 
-    public async Task ReleaseCopyAsync(Book book, DateTime now)
+    public async Task ReleaseCopyAsync(Book book, BookCopy copy, DateTime now)
     {
         var next = await _db.Reservations
             .Where(r => r.BookId == book.Id && r.Status == ReservationStatus.Waiting)
@@ -25,11 +25,13 @@ public class ReservationQueue : IReservationQueue
 
         if (next is null)
         {
-            book.AvailableCopies++;
+            copy.Status = BookCopyStatus.Available;
         }
         else
         {
+            copy.Status = BookCopyStatus.Reserved;
             next.Status = ReservationStatus.Ready;
+            next.CopyId = copy.Id;
             next.ExpiresAt = now.AddHours(LibraryRules.ReservationHoldHours);
         }
 

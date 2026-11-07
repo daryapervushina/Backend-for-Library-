@@ -1,0 +1,14 @@
+$kind: http-request
+name: GET /api/books?search=Book 1
+url: "{{baseUrl}}/api/books?search=Book%201"
+method: GET
+queryParams:
+  search: Book%201
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('Search narrows result', () => pm.expect(b.items.length).to.be.at.most(2));
+    language: text/javascript
+order: 3000

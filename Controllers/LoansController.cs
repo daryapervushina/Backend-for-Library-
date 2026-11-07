@@ -1,10 +1,8 @@
-using Library.DTOs.Auth;
-using Library.Filters;
-using Library.Services;
 using Library.Common;
 using Library.DTOs.Loans;
-using Microsoft.AspNetCore.Mvc;
+using Library.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Library.Controllers;
 
@@ -18,20 +16,21 @@ public class LoansController : ControllerBase
     {
         _loanService = loanService;
     }
-    [Authorize(Roles ="READER")]
+
+    [Authorize(Roles = "READER")]
     [HttpPost]
-    
     public async Task<ActionResult<LoanResponse>> Borrow(CreateLoanRequest request)
     {
         var id = User.GetUserId();
-        return Ok(await _loanService.BorrowAsync(id,request));
+        return Ok(await _loanService.BorrowAsync(id, request));
     }
-    [Authorize]
+
+     [Authorize]
     [HttpPost("{id:int}/return")]
-    public async Task<ActionResult<ReturnLoanResponse>> Return(int id)
+    public async Task<ActionResult<ReturnLoanResponse>> Return(int id, [FromBody] ReturnLoanRequest? request)
     {
-        bool isLibrarian=User.IsLibrarian();
-        int userId=User.GetUserId();
-        return Ok(await _loanService.ReturnAsync(id,userId,isLibrarian));
+        bool isLibrarian = User.IsLibrarian();
+        int userId = User.GetUserId();
+        return Ok(await _loanService.ReturnAsync(id, userId, isLibrarian, request?.Condition));
     }
 }

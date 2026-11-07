@@ -1,5 +1,13 @@
 namespace Library.DTOs.Books;
 
+public record CopiesSummaryResponse(
+    int Available,
+    int Loaned,
+    int Reserved,
+    int Maintenance,
+    int Lost,
+    int Damaged);
+
 public record BookResponse(
     int Id,
     string Title,
@@ -9,4 +17,5 @@ public record BookResponse(
     int TotalCopies,
     int AvailableCopies,
     List<AuthorShortResponse> Authors,
-    List<CategoryShortResponse> Categories);
+    List<CategoryShortResponse> Categories,
+    CopiesSummaryResponse Copies);

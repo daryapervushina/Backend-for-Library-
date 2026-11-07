@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/api/books"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{readerToken}}
+body:
+  type: json
+  content: '{"title":"ReaderBook","total_copies":1}'
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 403', () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 2000

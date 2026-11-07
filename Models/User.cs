@@ -11,7 +11,7 @@ public class User
     public UserRole Role { get; set; } = UserRole.Reader;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
-
+    public ICollection<Fine> Fines { get; set; } = new List<Fine>();
     public ICollection<Loan> Loans { get; set; } = new List<Loan>();
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 }

@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: '{"email":"{{reader2Email}}","password":"{{reader2Password}}","name":"{{reader2Name}}"}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.collectionVariables.set('reader2Id', pm.response.json().id);
+    language: text/javascript
+order: 3000

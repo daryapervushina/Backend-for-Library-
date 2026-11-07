@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/api/loans/{{loan1Id}}/return"
+method: POST
+headers:
+  Authorization: Bearer {{readerToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('Loan is RETURNED', () => pm.expect(b.status).to.eql('RETURNED'));
+    language: text/javascript
+order: 3000

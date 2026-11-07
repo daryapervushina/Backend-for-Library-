@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Library.Common;
 using Library.Common.Exceptions;
 using Library.Data;
 using Library.DTOs.Books;
@@ -13,35 +12,38 @@ namespace Library.Services;
 
 public class BookService : IBookService
 {
-    private static readonly Expression<Func<Book, BookResponse>> ToResponse = b => new BookResponse(
+    private const long InventoryLockKey = 7001;
+
+     private static readonly Expression<Func<Book, BookResponse>> ToResponse = b => new BookResponse(
         b.Id,
         b.Title,
         b.Isbn,
         b.Description,
         b.PublicationYear,
-        b.TotalCopies,
-        b.AvailableCopies,
+        b.Copies.Count(),
+        b.Copies.Count(c => c.Status == BookCopyStatus.Available),
         b.Authors.OrderBy(a => a.Id).Select(a => new AuthorShortResponse(a.Id, a.Name)).ToList(),
-        b.Categories.OrderBy(c => c.Id).Select(c => new CategoryShortResponse(c.Id, c.Name)).ToList());
+        b.Categories.OrderBy(c => c.Id).Select(c => new CategoryShortResponse(c.Id, c.Name)).ToList(),
+        new CopiesSummaryResponse(
+            b.Copies.Count(c => c.Status == BookCopyStatus.Available),
+            b.Copies.Count(c => c.Status == BookCopyStatus.Loaned),
+            b.Copies.Count(c => c.Status == BookCopyStatus.Reserved),
+            b.Copies.Count(c => c.Status == BookCopyStatus.Maintenance),
+            b.Copies.Count(c => c.Status == BookCopyStatus.Lost),
+            b.Copies.Count(c => c.Status == BookCopyStatus.Damaged)));
 
     private readonly AppDbContext _db;
     private readonly IOpenLibraryClient _openLibrary;
-    private readonly IBookLocker _bookLocker;
     private readonly IQueueMaterializer _materializer;
-    private readonly IReservationQueue _reservationQueue;
 
     public BookService(
         AppDbContext db,
         IOpenLibraryClient openLibrary,
-        IBookLocker bookLocker,
-        IQueueMaterializer materializer,
-        IReservationQueue reservationQueue)
+        IQueueMaterializer materializer)
     {
         _db = db;
         _openLibrary = openLibrary;
-        _bookLocker = bookLocker;
         _materializer = materializer;
-        _reservationQueue = reservationQueue;
     }
 
     public async Task<PagedResponse<BookResponse>> GetBooksAsync(BookQuery query)
@@ -71,9 +73,9 @@ public class BookService : IBookService
             books = books.Where(b => b.Authors.Any(a => a.Id == query.AuthorId));
 
         if (query.Available == true)
-            books = books.Where(b => b.AvailableCopies > 0);
+            books = books.Where(b => b.Copies.Any(c => c.Status == BookCopyStatus.Available));
         else if (query.Available == false)
-            books = books.Where(b => b.AvailableCopies == 0);
+            books = books.Where(b => !b.Copies.Any(c => c.Status == BookCopyStatus.Available));
 
         var total = await books.CountAsync();
 
@@ -90,7 +92,7 @@ public class BookService : IBookService
     public async Task<BookResponse> CreateAsync(CreateBookRequest request)
     {
         var isbn = string.IsNullOrWhiteSpace(request.Isbn) ? null : request.Isbn.Trim();
-        var totalCopies = request.TotalCopies!.Value;
+        var initialCopies = request.TotalCopies!.Value;
 
         if (isbn != null && await _db.Books.AnyAsync(b => b.Isbn == isbn))
             throw new ConflictException("book with this isbn already exists");
@@ -98,8 +100,6 @@ public class BookService : IBookService
         var book = new Book
         {
             Isbn = isbn,
-            TotalCopies = totalCopies,
-            AvailableCopies = totalCopies,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -127,41 +127,60 @@ public class BookService : IBookService
         foreach (var category in await LoadCategoriesAsync(request.CategoryIds))
             book.Categories.Add(category);
 
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+         if (initialCopies > 0)
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({InventoryLockKey})");
+
+            var next = (await _db.BookCopies.MaxAsync(c => (int?)c.InventoryNumber) ?? 0) + 1;
+
+            for (var i = 0; i < initialCopies; i++)
+            {
+                book.Copies.Add(new BookCopy
+                {
+                    InventoryNumber = next + i,
+                    Status = BookCopyStatus.Available,
+                    Condition = BookCopyCondition.Ok,
+                    CreatedAt = book.CreatedAt
+                });
+            }
+        }
+
         _db.Books.Add(book);
 
         try
         {
             await _db.SaveChangesAsync();
         }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
         {
-            throw new ConflictException("book with this isbn already exists");
+            throw pg.ConstraintName?.Contains("InventoryNumber") == true
+                ? new ConflictException("inventory_number is already used, try again")
+                : new ConflictException("book with this isbn already exists");
         }
+
+        await tx.CommitAsync();
 
         return await GetResponseAsync(book.Id);
     }
 
     public async Task<BookResponse> UpdateAsync(int id, UpdateBookRequest request)
     {
-        var now = DateTime.UtcNow;
-        var newTotal = request.TotalCopies!.Value;
-
-        await using var tx = await _db.Database.BeginTransactionAsync();
-
-        var book = await _bookLocker.GetForUpdateAsync(id);
-        await _materializer.MaterializeAsync(book, now);
-
-        var activeLoans = await _db.Loans.CountAsync(l => l.BookId == id && l.Status == LoanStatus.Active);
-        var readyReservations = await _db.Reservations.CountAsync(r => r.BookId == id && r.Status == ReservationStatus.Ready);
-
-        if (newTotal < activeLoans + readyReservations)
-            throw new ConflictException("total_copies cannot be less than active loans plus ready reservations");
+        if (request.TotalCopies != null || request.AvailableCopies != null)
+        {
+            throw new BadRequestException(
+                "total_copies and available_copies cannot be changed directly; manage copies via /api/books/{id}/copies");
+        }
 
         var authors = await LoadAuthorsAsync(request.AuthorIds);
         var categories = await LoadCategoriesAsync(request.CategoryIds);
 
-        await _db.Entry(book).Collection(b => b.Authors).LoadAsync();
-        await _db.Entry(book).Collection(b => b.Categories).LoadAsync();
+        var book = await _db.Books
+            .Include(b => b.Authors)
+            .Include(b => b.Categories)
+            .FirstOrDefaultAsync(b => b.Id == id)
+            ?? throw new NotFoundException("Book not found");
 
         book.Title = request.Title.Trim();
         book.Description = request.Description;
@@ -175,18 +194,7 @@ public class BookService : IBookService
         foreach (var category in categories)
             book.Categories.Add(category);
 
-        var freeCopies = newTotal - activeLoans - readyReservations;
-        var waiting = await _db.Reservations.CountAsync(r => r.BookId == id && r.Status == ReservationStatus.Waiting);
-        var toQueue = Math.Min(freeCopies, waiting);
-
-        book.TotalCopies = newTotal;
-        book.AvailableCopies = freeCopies - toQueue;
-
-        for (var i = 0; i < toQueue; i++)
-            await _reservationQueue.ReleaseCopyAsync(book, now);
-
         await _db.SaveChangesAsync();
-        await tx.CommitAsync();
 
         return await GetResponseAsync(id);
     }

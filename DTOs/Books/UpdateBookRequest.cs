@@ -12,12 +12,12 @@ public class UpdateBookRequest
     public int? PublicationYear { get; set; }
 
     [Required]
-    [Range(0, int.MaxValue)]
-    public int? TotalCopies { get; set; }
-
-    [Required]
     public List<int> AuthorIds { get; set; } = new();
 
     [Required]
     public List<int> CategoryIds { get; set; } = new();
+
+    public int? TotalCopies { get; set; }
+
+    public int? AvailableCopies { get; set; }
 }

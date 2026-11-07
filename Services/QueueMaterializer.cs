@@ -23,6 +23,7 @@ public class QueueMaterializer : IQueueMaterializer
         while (true)
         {
             var expired = await _db.Reservations
+                .Include(r => r.Copy)
                 .Where(r => r.BookId == book.Id
                     && r.Status == ReservationStatus.Ready
                     && r.ExpiresAt < now)
@@ -31,11 +32,18 @@ public class QueueMaterializer : IQueueMaterializer
 
             if (expired is null)
             {
-                return; 
+                return;
             }
 
             expired.Status = ReservationStatus.Expired;
-            await _reservationQueue.ReleaseCopyAsync(book, now);
+
+            if (expired.Copy is null)
+            {
+                await _db.SaveChangesAsync();
+                continue;
+            }
+
+            await _reservationQueue.ReleaseCopyAsync(book, expired.Copy, now);
         }
     }
 

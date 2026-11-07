@@ -34,6 +34,8 @@ builder.Services.AddScoped<ILoanService, LoanService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IOpenLibraryClient, OpenLibraryClient>();
 builder.Services.AddScoped<IBookService, BookService>();
+builder.Services.AddScoped<ICopyService, CopyService>();
+builder.Services.AddScoped<IFineService, FineService>();
 
 builder.Services.AddHttpClient(OpenLibraryOptions.ClientName, (serviceProvider, client) =>
 {
