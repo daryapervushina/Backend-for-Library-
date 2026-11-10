@@ -1,93 +1,117 @@
-# KT-6387
+# Library API
 
+REST API для управления библиотекой: каталог книг, учёт физических экземпляров, выдача и возврат, очередь бронирований и штрафы. Реализованы роли читателя (`READER`) и библиотекаря (`LIBRARIAN`), аутентификация по JWT и получение сведений о книгах через Open Library.
 
+## Технологии
 
-## Getting started
+- C# и ASP.NET Core, .NET 9.
+- Entity Framework Core 9 и PostgreSQL (Npgsql).
+- JWT Bearer для защищённых запросов.
+- Postman: сценарии запросов в каталоге `postman/collections`.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Запуск
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Потребуются .NET 9 SDK и доступный сервер PostgreSQL. Выполняйте команды из каталога с `Library.csproj`.
 
-## Add your files
+1. Настройте подключение к PostgreSQL и параметры приложения через переменные окружения (пример для PowerShell):
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
+```powershell
+$env:ConnectionStrings__DefaultConnection = 'Host=localhost;Port=5432;Database=library_db;Username=postgres;Password=YOUR_PASSWORD'
+$env:Jwt__SecretKey = 'replace-with-a-random-secret-at-least-32-bytes-long'
+$env:Database__ResetOnStartup = 'false'
+$env:Seed__LibrarianEmail = 'librarian@example.com'
+$env:Seed__LibrarianPassword = 'ChangeMe123!'
+$env:Seed__LibrarianName = 'Librarian'
 ```
-cd existing_repo
-git remote add origin https://git.code.hits.university/dasha_pervushina-tasks/KT-6387.git
-git branch -M master
-git push -uf origin master
+
+2. Восстановите зависимости и запустите приложение:
+
+```powershell
+dotnet restore
+dotnet build
+dotnet run --launch-profile http
 ```
 
-## Integrate with your tools
+API будет доступно по адресу `http://localhost:8080`. При запуске автоматически применяются миграции и выполняется начальное заполнение учётной записи библиотекаря. Для создания и изменения схемы пользователь PostgreSQL должен иметь соответствующие права.
 
-* [Set up project integrations](https://git.code.hits.university/dasha_pervushina-tasks/KT-6387/-/settings/integrations)
+**Важно:** в `appsettings.Development.json` включён `Database:ResetOnStartup`. При значении `true` приложение удаляет базу перед применением миграций. Указанная выше переменная окружения отключает это поведение.
 
-## Collaborate with your team
+## Конфигурация
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+| Раздел | Назначение |
+| --- | --- |
+| `ConnectionStrings:DefaultConnection` | Подключение к PostgreSQL |
+| `Jwt:SecretKey` | Ключ подписи JWT |
+| `Jwt:ExpirationMinutes` | Срок действия токена; в конфигурации — 60 минут |
+| `OpenLibrary:BaseUrl` | Адрес Open Library |
+| `OpenLibrary:TimeoutSeconds` | Тайм-аут внешних запросов; в конфигурации — 10 секунд |
+| `Seed` | Имя, email и пароль начального библиотекаря |
+| `Database:ResetOnStartup` | Удаление базы при старте |
 
-## Test and Deploy
+Переменные окружения используют двойное подчёркивание вместо двоеточия. Для собственного окружения задайте свои пароли и ключ подписи.
 
-Use the built-in continuous integration in GitLab.
+## Работа с API
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+JSON использует `snake_case`. Зарегистрируйте читателя запросом `POST /api/auth/register`:
 
-***
+```json
+{
+  "email": "reader@example.com",
+  "password": "Reader123!",
+  "name": "Reader"
+}
+```
 
-# Editing this README
+Для входа отправьте email и пароль на `POST /api/auth/login`. Полученный токен передавайте в заголовке защищённых запросов:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```http
+Authorization: Bearer <token>
+```
 
-## Suggestions for a good README
+Для входа библиотекаря используйте данные раздела `Seed`.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Основные маршруты
 
-## Name
-Choose a self-explaining name for your project.
+| Метод | Маршрут | Назначение |
+| --- | --- | --- |
+| POST | `/api/auth/register` | Регистрация читателя |
+| POST | `/api/auth/login` | Получение токена |
+| GET | `/api/books` | Каталог книг |
+| POST | `/api/books` | Добавление книги |
+| PUT / PATCH | `/api/books/{id}` | Изменение книги |
+| GET / POST | `/api/books/{id}/copies` | Просмотр и добавление экземпляров |
+| PATCH | `/api/copies/{id}` | Изменение экземпляра |
+| POST | `/api/loans` | Выдача книги |
+| POST | `/api/loans/{id}/return` | Возврат книги |
+| POST | `/api/reservations` | Бронирование |
+| DELETE | `/api/reservations/{id}` | Отмена бронирования |
+| GET | `/api/users/{id}/loans` | Выдачи пользователя |
+| GET | `/api/users/{id}/fines` | Штрафы пользователя |
+| POST | `/api/fines/{id}/pay` | Оплата штрафа |
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Доступ к операциям зависит от роли и проверок в контроллерах и сервисах. Каталог доступен без токена. Управление книгами и экземплярами предназначено для библиотекаря.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## Правила библиотеки
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Константы находятся в `Common/LibraryRules.cs`:
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+- До 5 активных выдач, срок выдачи — 14 дней.
+- Удержание готовой брони — 48 часов.
+- Штраф за просрочку — 10 за день, повреждение — 300, потерю — 1000.
+- Порог суммы неоплаченных штрафов — 500.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## Структура проекта
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+- `Controllers` — HTTP-маршруты и авторизация.
+- `Services` — бизнес-логика, очередь бронирований, JWT и клиент Open Library.
+- `Models` — сущности и перечисления.
+- `DTOs` — модели запросов и ответов.
+- `Data` — контекст EF Core и начальное заполнение данных.
+- `Migrations` — изменения схемы и снимок модели EF Core.
+- `Common`, `Filters` — общие правила, исключения и валидация.
+- `Options` — классы параметров конфигурации.
+- `postman` — материалы для проверки API.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Проверка
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Для проверки компиляции используйте `dotnet build`. Сценарии Postman охватывают авторизацию, каталог, выдачи, бронирования, лимиты и контроль доступа; для их выполнения нужны запущенное API и база данных. Swagger UI в текущем `Program.cs` не подключён.

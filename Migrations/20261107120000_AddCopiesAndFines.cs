@@ -8,17 +8,12 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Library.Migrations
 {
-    /// <summary>
-    /// v1 -> v2: physical copies (book_copies), fines, loans.CopyId, reservations.CopyId.
-    /// Existing data is converted with SQL inside this migration.
-    /// </summary>
     [DbContext(typeof(AppDbContext))]
     [Migration("20261107120000_AddCopiesAndFines")]
     public partial class AddCopiesAndFines : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // ---- 1. new tables / columns (new FK columns are nullable until the data is converted) ----
             migrationBuilder.CreateTable(
                 name: "book_copies",
                 columns: table => new
@@ -54,7 +49,6 @@ namespace Library.Migrations
                 type: "integer",
                 nullable: true);
 
-            // ---- 2. data: one copy per unit of books.TotalCopies ----
             migrationBuilder.Sql(@"
 INSERT INTO book_copies (""BookId"", ""InventoryNumber"", ""Status"", ""Condition"", ""CreatedAt"")
 SELECT b.""Id"",
@@ -66,8 +60,6 @@ FROM books b
 CROSS JOIN LATERAL generate_series(1, b.""TotalCopies"") AS g(n);
 ");
 
-            // Books that were shrunk to 0 copies but still have loan history: keep one
-            // out-of-circulation placeholder copy so the history can point to a copy.
             migrationBuilder.Sql(@"
 INSERT INTO book_copies (""BookId"", ""InventoryNumber"", ""Status"", ""Condition"", ""CreatedAt"")
 SELECT x.""BookId"",
@@ -82,7 +74,6 @@ FROM (
 ) x;
 ");
 
-            // ---- 3. data: spread ACTIVE loans over the copies of their book ----
             migrationBuilder.Sql(@"
 WITH ranked_loans AS (
     SELECT ""Id"", ""BookId"",
@@ -108,7 +99,6 @@ SET ""Status"" = 'LOANED'
 WHERE ""Id"" IN (SELECT ""CopyId"" FROM loans WHERE ""CopyId"" IS NOT NULL AND ""Status"" = 'ACTIVE');
 ");
 
-            // ---- 4. data: READY reservations hold one of the still free copies ----
             migrationBuilder.Sql(@"
 WITH ranked_ready AS (
     SELECT ""Id"", ""BookId"",
@@ -135,14 +125,12 @@ SET ""Status"" = 'RESERVED'
 WHERE ""Id"" IN (SELECT ""CopyId"" FROM reservations WHERE ""CopyId"" IS NOT NULL AND ""Status"" = 'READY');
 ");
 
-            // ---- 5. data: returned loans (history) point to any copy of their book ----
             migrationBuilder.Sql(@"
 UPDATE loans l
 SET ""CopyId"" = (SELECT MIN(c.""Id"") FROM book_copies c WHERE c.""BookId"" = l.""BookId"")
 WHERE l.""CopyId"" IS NULL;
 ");
 
-            // ---- 6. constraints on the converted data ----
             migrationBuilder.AlterColumn<int>(
                 name: "CopyId",
                 table: "loans",
@@ -231,7 +219,6 @@ WHERE l.""CopyId"" IS NULL;
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
 
-            // ---- 7. book_copies is now the source of truth: drop the counters ----
             migrationBuilder.DropCheckConstraint(
                 name: "ck_books_available_le_total",
                 table: "books");
@@ -261,7 +248,6 @@ WHERE l.""CopyId"" IS NULL;
                 nullable: false,
                 defaultValue: 0);
 
-            // Counters are rebuilt from the copies (lost/damaged/maintenance copies are not counted).
             migrationBuilder.Sql(@"
 UPDATE books b
 SET ""TotalCopies"" = (SELECT COUNT(*) FROM book_copies c
